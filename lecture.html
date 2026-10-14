@@ -1,0 +1,949 @@
+<title>Lines That Learn</title>
+<meta name="description" content="ML 101, class 1: linear regression, logistic regression and the perceptron on the Iris dataset.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<script>
+  window.MathJax = {
+    tex: { inlineMath: [["\\(", "\\)"]], displayMath: [["\\[", "\\]"]] },
+    svg: { fontCache: "global" }
+  };
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js" defer></script>
+<style>
+  :root {
+    --paper: #f4f5f8;
+    --surface: #ffffff;
+    --ink: #191c26;
+    --muted: #5a5f70;
+    --rule: #d9dce5;
+    --soft: #e9ebf1;
+    --setosa: #4656c9;
+    --versicolor: #b8700f;
+    --virginica: #1f7a6d;
+    --wrong: #c0233b;
+    --code-bg: #eceef4;
+    --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+    --body: "Literata", "Iowan Old Style", Georgia, serif;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --measure: 66ch;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --paper: #12141b;
+      --surface: #1a1d27;
+      --ink: #e6e8ef;
+      --muted: #a2a7b8;
+      --rule: #2e3240;
+      --soft: #232733;
+      --setosa: #8e9af2;
+      --versicolor: #e5a44a;
+      --virginica: #4fc2ad;
+      --wrong: #ff6b81;
+      --code-bg: #1f2230;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --paper: #12141b;
+    --surface: #1a1d27;
+    --ink: #e6e8ef;
+    --muted: #a2a7b8;
+    --rule: #2e3240;
+    --soft: #232733;
+    --setosa: #8e9af2;
+    --versicolor: #e5a44a;
+    --virginica: #4fc2ad;
+    --wrong: #ff6b81;
+    --code-bg: #1f2230;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 17px;
+    line-height: 1.62;
+    padding-inline: 20px;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding-block: 48px 96px; }
+  h1, h2, h3 { font-family: var(--display); text-wrap: balance; line-height: 1.12; margin: 0; }
+  h1 { font-size: clamp(2.4rem, 6vw, 4.1rem); font-weight: 700; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.7rem, 3.6vw, 2.35rem); font-weight: 700; letter-spacing: -0.01em; }
+  h3 { font-size: 1.2rem; font-weight: 500; margin-top: 8px; }
+  p, li { max-width: var(--measure); }
+  p { margin: 0; }
+  a { color: inherit; text-decoration-color: var(--muted); text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible, select:focus-visible { outline: 2px solid var(--setosa); outline-offset: 2px; }
+  code, kbd { font-family: var(--mono); font-size: 0.86em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  pre { font-family: var(--mono); font-size: 0.84rem; line-height: 1.55; background: var(--code-bg); padding: 16px 18px; border-radius: 8px; overflow-x: auto; margin: 0; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  .eyebrow { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .flow { display: flex; flex-direction: column; gap: 18px; }
+  .math { overflow-x: auto; overflow-y: hidden; padding-block: 4px; }
+  mjx-container[display="true"] { margin: 0.4em 0 !important; }
+
+  /* Header */
+  header.top { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 40px; align-items: end; padding-bottom: 36px; border-bottom: 1px solid var(--rule); }
+  .lede { font-size: 1.15rem; color: var(--muted); margin-top: 18px; }
+  .specimen {
+    font-family: var(--mono); font-size: 0.78rem; line-height: 1.5;
+    border: 1px solid var(--ink); padding: 14px 16px; background: var(--surface);
+    display: grid; grid-template-columns: auto 1fr; gap: 4px 14px;
+  }
+  .specimen .title { grid-column: 1 / -1; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; border-bottom: 1px solid var(--rule); padding-bottom: 6px; margin-bottom: 4px; }
+  .specimen dt { color: var(--muted); }
+  .specimen dd { margin: 0; }
+
+  /* Agenda */
+  .agenda { margin-top: 32px; }
+  .agenda ol { list-style: none; padding: 0; margin: 14px 0 0; display: grid; grid-template-columns: 10fr 25fr 25fr 15fr 10fr 5fr; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+  .agenda li { padding: 12px 12px 14px; border-right: 1px solid var(--rule); background: var(--surface); max-width: none; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .agenda li:last-child { border-right: 0; }
+  .agenda a { text-decoration: none; font-family: var(--display); font-weight: 500; line-height: 1.2; font-size: 0.98rem; }
+  .agenda a:hover { text-decoration: underline; }
+  .agenda .t { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* Sections */
+  section.part { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 32px; padding-block: 56px; border-bottom: 1px solid var(--rule); }
+  .stamp { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 20px); align-self: start; display: flex; flex-direction: column; gap: 6px; }
+  .stamp .clock { font-family: var(--mono); font-size: 0.95rem; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .stamp .dur { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); }
+  .say { border-left: 3px solid var(--rule); padding: 4px 0 4px 16px; color: var(--muted); font-style: italic; }
+  .say b { font-style: normal; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink); margin-right: 6px; }
+  .defs { display: grid; grid-template-columns: max-content 1fr; gap: 8px 18px; margin: 0; max-width: var(--measure); }
+  .defs dt { font-family: var(--mono); font-size: 0.9rem; }
+  .defs dd { margin: 0; }
+  .key { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 16px 20px; max-width: calc(var(--measure) + 40px); }
+  .key .eyebrow { display: block; margin-bottom: 4px; }
+  .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+  .fig { display: flex; flex-direction: column; gap: 8px; }
+  .fig canvas, .fig svg { width: 100%; display: block; }
+  figcaption, .cap { font-size: 0.86rem; color: var(--muted); }
+  ul.tight { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; }
+
+  /* Demo */
+  .demo { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+  .demo-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 20px; }
+  .demo-head h3 { margin: 0; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+  .controls label { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  button, select { font: 500 0.88rem var(--display); color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+  select { font-family: var(--mono); font-size: 0.8rem; padding: 5px 8px; }
+  button:hover, select:hover { border-color: var(--muted); }
+  button.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); min-width: 78px; }
+  .demo-body { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 18px; }
+  .plot canvas { width: 100%; display: block; }
+  .side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .readout { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-family: var(--mono); font-size: 0.8rem; font-variant-numeric: tabular-nums; margin: 0; }
+  .readout dt { color: var(--muted); }
+  .readout dd { margin: 0; overflow-wrap: anywhere; }
+  .status { font-family: var(--mono); font-size: 0.78rem; padding: 6px 10px; border-radius: 6px; background: var(--soft); }
+  .status[data-state="done"] { color: var(--virginica); }
+  .status[data-state="bad"] { color: var(--wrong); }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-family: var(--mono); font-size: 0.75rem; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 11px; height: 11px; display: inline-block; }
+  .sw.c { border-radius: 50%; }
+  .sw.t { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 11px solid currentColor; }
+  .sw.l { width: 18px; height: 0; border-top: 2.5px solid var(--ink); }
+  .sw.d { width: 18px; height: 0; border-top: 1.5px dashed var(--muted); }
+  .sw.r { border-radius: 50%; border: 2px solid var(--wrong); }
+
+  /* Comparison */
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.92rem; min-width: 640px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-family: var(--display); font-weight: 500; font-size: 0.95rem; }
+  thead th { border-bottom: 1.5px solid var(--ink); }
+  tbody th { font-family: var(--mono); font-weight: 400; font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .acts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .files { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; margin: 0; }
+  .files dt { font-family: var(--mono); font-size: 0.85rem; }
+  .files dd { margin: 0; }
+  ol.ex { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 10px; }
+  footer { padding-top: 32px; font-size: 0.86rem; color: var(--muted); }
+
+  @media (max-width: 860px) {
+    header.top { grid-template-columns: 1fr; gap: 24px; }
+    section.part { grid-template-columns: 1fr; gap: 16px; padding-block: 40px; }
+    .stamp { position: static; flex-direction: row; align-items: baseline; gap: 14px; }
+    .demo-body { grid-template-columns: 1fr; }
+    .agenda ol { grid-template-columns: 1fr 1fr; }
+    .agenda li { border-bottom: 1px solid var(--rule); }
+  }
+  @media (max-width: 560px) {
+    body { font-size: 16px; padding-inline: 16px; }
+    .two, .acts { grid-template-columns: 1fr; }
+    .agenda ol { grid-template-columns: 1fr; }
+    .agenda li { border-right: 0; }
+    .demo { padding: 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  html { scroll-behavior: smooth; }
+</style>
+
+<div class="wrap">
+
+<header class="top">
+  <div>
+    <div class="eyebrow">ML 101 · Class 1 · 90 minutes</div>
+    <h1>Lines That Learn</h1>
+    <p class="lede">Three ways to draw a line through flower measurements: linear regression, logistic regression and the perceptron. Same data, same update rule shape, three different answers.</p>
+  </div>
+  <dl class="specimen" aria-label="Dataset label">
+    <span class="title">Iris · Fisher 1936</span>
+    <dt>Collector</dt><dd>Edgar Anderson, Gaspé Peninsula</dd>
+    <dt>Specimens</dt><dd>150 flowers, 50 per species</dd>
+    <dt>Measured</dt><dd>sepal &amp; petal length, width (cm)</dd>
+    <dt>Today</dt><dd>setosa (y=0) vs versicolor (y=1)</dd>
+    <dt>Features</dt><dd>sepal length, sepal width</dd>
+  </dl>
+</header>
+
+<nav class="agenda" aria-label="Lecture plan">
+  <div class="eyebrow">Lecture plan · width of each block is its share of the 90 minutes</div>
+  <ol>
+    <li><span class="t">0:00–0:10</span><a href="#setup">The setup</a></li>
+    <li><span class="t">0:10–0:35</span><a href="#linear">Linear regression</a></li>
+    <li><span class="t">0:35–1:00</span><a href="#logistic">Logistic regression</a></li>
+    <li><span class="t">1:00–1:15</span><a href="#perceptron">Perceptron</a></li>
+    <li><span class="t">1:15–1:25</span><a href="#compare">Side by side</a></li>
+    <li><span class="t">1:25–1:30</span><a href="#wrap">Wrap-up</a></li>
+  </ol>
+</nav>
+
+<!-- ===================================================================== -->
+<section class="part" id="setup">
+  <div class="stamp"><span class="clock">0:00</span><span class="dur">10 min</span></div>
+  <div class="flow">
+    <div class="eyebrow">Part 0</div>
+    <h2>The setup: learning from examples</h2>
+    <p>In <strong>supervised learning</strong> we are given examples of inputs together with the right answers, and we want a function that gives the right answer for new inputs. A program that improves at this task by looking at more examples is learning.</p>
+    <dl class="defs">
+      <dt>\(x^{(i)}\)</dt><dd>input features of example \(i\). Here: sepal length and sepal width of one flower.</dd>
+      <dt>\(y^{(i)}\)</dt><dd>the target. Here: 0 for setosa, 1 for versicolor.</dd>
+      <dt>\(m\)</dt><dd>number of training examples. Here: 100 flowers.</dd>
+      <dt>\(h_\theta(x)\)</dt><dd>the <em>hypothesis</em>: our model's output for input \(x\), controlled by parameters \(\theta\).</dd>
+      <dt>\(x_0 = 1\)</dt><dd>a constant feature, so \(\theta_0\) acts as the intercept.</dd>
+    </dl>
+    <p>When \(y\) is a continuous number (a price, a temperature) the problem is <strong>regression</strong>. When \(y\) takes a few discrete values (spam or not, setosa or versicolor) it is <strong>classification</strong>. Today all three models are <em>linear</em>: they compute \(\theta^T x = \theta_0 + \theta_1 x_1 + \theta_2 x_2\) and differ in what they do with that number.</p>
+    <div class="say"><b>Ask the room</b>Look at the scatter plot in the first demo below. Could you draw a straight line that separates the two species? Where would you put it? Learning is the algorithm finding that line by itself.</div>
+    <p>One practical step before training: we <strong>standardize</strong> each feature, \(z_j = (x_j - \mu_j)/\sigma_j\), so both features have mean 0 and standard deviation 1. Gradient descent converges much faster when features are on similar scales. The plots still show centimetres.</p>
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<section class="part" id="linear">
+  <div class="stamp"><span class="clock">0:10</span><span class="dur">25 min</span></div>
+  <div class="flow">
+    <div class="eyebrow">Part 1 · CS229 notes §1</div>
+    <h2>Linear regression</h2>
+    <p>The simplest model: predict with a weighted sum of the features.</p>
+    <div class="math">\[ h_\theta(x) = \theta^T x = \sum_{j=0}^{n} \theta_j x_j \]</div>
+    <h3>What is a good \(\theta\)? The cost function</h3>
+    <p>We measure how wrong the model is on the training set with the <strong>least-squares cost</strong>: square each error, then average. Squaring makes all errors positive and punishes large errors more than small ones.</p>
+    <div class="math">\[ J(\theta) = \frac{1}{2m} \sum_{i=1}^{m} \left( h_\theta(x^{(i)}) - y^{(i)} \right)^2 \]</div>
+    <p>Learning now has a precise meaning: find the \(\theta\) that makes \(J(\theta)\) as small as possible.</p>
+    <h3>Gradient descent</h3>
+    <p>Start from any \(\theta\). Compute the slope of \(J\) (the gradient), and take a small step downhill. Repeat. The step size \(\alpha\) is the <strong>learning rate</strong>.</p>
+    <div class="math">\[ \theta_j := \theta_j - \alpha \frac{\partial J}{\partial \theta_j} = \theta_j - \alpha \, \frac{1}{m}\sum_{i=1}^{m} \left( h_\theta(x^{(i)}) - y^{(i)} \right) x_j^{(i)} \]</div>
+    <p>This is the <strong>LMS rule</strong> (least mean squares). Read it out loud: each example pushes \(\theta\) in proportion to its error. Examples the model already gets right barely move it.</p>
+    <div class="key"><span class="eyebrow">Shortcut</span>For least squares there is also a closed-form answer, the <strong>normal equation</strong> \(\theta = (X^TX)^{-1}X^T y\). Gradient descent matters because it still works when no formula exists, which is the case for logistic regression and neural networks. The dashed line in the demo is the normal-equation answer, so you can watch gradient descent arrive at it.</div>
+
+    <h3>Using regression to classify</h3>
+    <p>Our labels are 0 and 1, so we fit a regression to them and call anything with \(h_\theta(x) \ge 0.5\) a versicolor. The <strong>decision boundary</strong> is the line where \(\theta^T x = 0.5\).</p>
+
+    <div class="demo" data-model="linear" id="demo-linear"></div>
+
+    <div class="say"><b>Try live</b>Set \(\alpha = 0.01\): it still converges, just slowly. Set \(\alpha = 1.5\): it zig-zags but settles. Set \(\alpha = 1.8\): the cost explodes. Every model has a range of learning rates that works.</div>
+    <h3>Why this is a rough classifier</h3>
+    <ul class="tight">
+      <li>\(h_\theta(x)\) is not bounded: it can say 1.7 or −0.4, which means nothing for a yes/no question.</li>
+      <li>Least squares also penalises points that are <em>correctly</em> classified but far from the line, because they are far from 0 or 1. Far-away points drag the boundary. Result: 99% accuracy, with one setosa (4.5 cm, 2.3 cm) on the wrong side.</li>
+    </ul>
+    <p>We want a model whose output is a probability between 0 and 1. That is logistic regression.</p>
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<section class="part" id="logistic">
+  <div class="stamp"><span class="clock">0:35</span><span class="dur">25 min</span></div>
+  <div class="flow">
+    <div class="eyebrow">Part 2 · CS229 notes §2.1</div>
+    <h2>Logistic regression</h2>
+    <p>Keep the linear score \(\theta^T x\), but squash it through the <strong>sigmoid</strong> (logistic) function so the output always lands between 0 and 1.</p>
+    <div class="two">
+      <div class="flow">
+        <div class="math">\[ h_\theta(x) = g(\theta^T x), \qquad g(z) = \frac{1}{1 + e^{-z}} \]</div>
+        <ul class="tight">
+          <li>\(z \to +\infty\): \(g(z) \to 1\)</li>
+          <li>\(z \to -\infty\): \(g(z) \to 0\)</li>
+          <li>\(z = 0\): \(g(z) = 0.5\), so the boundary is the line \(\theta^T x = 0\)</li>
+        </ul>
+        <p>We read the output as a probability: \(h_\theta(x) = P(y = 1 \mid x; \theta)\).</p>
+      </div>
+      <figure class="fig" style="margin:0">
+        <canvas id="sigmoid-fig" height="200" aria-label="Plot of the sigmoid function from z = -6 to 6"></canvas>
+        <figcaption>The sigmoid \(g(z)\). The further a flower is from the boundary, the more confident the model.</figcaption>
+      </figure>
+    </div>
+
+    <h3>The cost: likelihood, or cross-entropy</h3>
+    <p>Choose \(\theta\) to make the observed labels as probable as possible (<strong>maximum likelihood</strong>). Taking minus the log and averaging gives the cross-entropy, or log loss:</p>
+    <div class="math">\[ J(\theta) = -\frac{1}{m} \sum_{i=1}^{m} \Big[ y^{(i)} \log h_\theta(x^{(i)}) + (1 - y^{(i)}) \log \big(1 - h_\theta(x^{(i)})\big) \Big] \]</div>
+    <p>A confident wrong answer costs a lot: if the model says \(P(\text{versicolor}) = 0.01\) and the flower is a versicolor, that example costs \(-\log 0.01 \approx 4.6\). A confident right answer costs almost nothing.</p>
+    <h3>The gradient looks familiar</h3>
+    <div class="math">\[ \theta_j := \theta_j - \alpha \, \frac{1}{m} \sum_{i=1}^{m} \left( h_\theta(x^{(i)}) - y^{(i)} \right) x_j^{(i)} \]</div>
+    <div class="key"><span class="eyebrow">Point to stop on</span>This is the same formula as the LMS rule from Part 1, letter for letter. The only change is what \(h_\theta\) means. The derivative of the sigmoid, \(g'(z) = g(z)(1 - g(z))\), cancels neatly against the log in the cost. Chapter 3 of the notes (generalized linear models) explains why this is no coincidence.</div>
+
+    <div class="demo" data-model="logistic" id="demo-logistic"></div>
+
+    <div class="say"><b>Point out</b>The background shading is the predicted probability. Watch it sharpen over time. On this pair of species the data can be perfectly separated, so the cost keeps creeping towards 0 and \(\theta\) keeps growing: the model gets ever more confident. The boundary itself stops moving early. Then switch the species to versicolor vs virginica: the classes overlap, the cost levels off, and the shading stays soft. That soft region is honest uncertainty.</div>
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<section class="part" id="perceptron">
+  <div class="stamp"><span class="clock">1:00</span><span class="dur">15 min</span></div>
+  <div class="flow">
+    <div class="eyebrow">Part 3 · CS229 notes §2.2</div>
+    <h2>The perceptron</h2>
+    <p>Frank Rosenblatt's perceptron (1958) was built as a model of a single neuron. It replaces the smooth sigmoid with a hard yes/no threshold.</p>
+    <div class="two">
+      <div class="flow">
+        <div class="math">\[ h_\theta(x) = g(\theta^T x), \qquad g(z) = \begin{cases} 1 & z \ge 0 \\ 0 & z < 0 \end{cases} \]</div>
+        <p>It learns <strong>one example at a time</strong>:</p>
+        <div class="math">\[ \theta := \theta + \alpha \left( y^{(i)} - h_\theta(x^{(i)}) \right) x^{(i)} \]</div>
+      </div>
+      <figure class="fig" style="margin:0">
+        <svg viewBox="0 0 360 200" role="img" aria-label="Diagram of a perceptron: inputs x0, x1, x2 multiplied by weights theta0, theta1, theta2, summed, then passed through a step function to give the prediction.">
+          <g font-family="JetBrains Mono, monospace" font-size="12" fill="var(--ink)">
+            <g stroke="var(--muted)" stroke-width="1.4" fill="none">
+              <line x1="62" y1="40" x2="196" y2="100"/>
+              <line x1="62" y1="100" x2="196" y2="100"/>
+              <line x1="62" y1="160" x2="196" y2="100"/>
+              <line x1="238" y1="100" x2="268" y2="100"/>
+              <line x1="312" y1="100" x2="340" y2="100" marker-end="url(#arr)"/>
+            </g>
+            <defs><marker id="arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--muted)"/></marker></defs>
+            <circle cx="46" cy="40" r="16" fill="var(--surface)" stroke="var(--ink)"/>
+            <circle cx="46" cy="100" r="16" fill="var(--surface)" stroke="var(--ink)"/>
+            <circle cx="46" cy="160" r="16" fill="var(--surface)" stroke="var(--ink)"/>
+            <text x="46" y="44" text-anchor="middle">1</text>
+            <text x="46" y="104" text-anchor="middle">x₁</text>
+            <text x="46" y="164" text-anchor="middle">x₂</text>
+            <text x="120" y="56" fill="var(--muted)">θ₀</text>
+            <text x="120" y="94" fill="var(--muted)">θ₁</text>
+            <text x="120" y="142" fill="var(--muted)">θ₂</text>
+            <circle cx="217" cy="100" r="21" fill="var(--surface)" stroke="var(--ink)"/>
+            <text x="217" y="105" text-anchor="middle" font-size="16">Σ</text>
+            <rect x="268" y="80" width="44" height="40" rx="4" fill="var(--surface)" stroke="var(--ink)"/>
+            <path d="M276 110 H290 V90 H304" stroke="var(--ink)" stroke-width="1.6" fill="none"/>
+            <text x="336" y="88" text-anchor="end">ŷ</text>
+            <text x="217" y="140" text-anchor="middle" fill="var(--muted)" font-size="10.5">θᵀx</text>
+            <text x="290" y="140" text-anchor="middle" fill="var(--muted)" font-size="10.5">g(z)</text>
+            <text x="46" y="192" text-anchor="middle" fill="var(--muted)" font-size="10.5">inputs</text>
+          </g>
+        </svg>
+        <figcaption>One artificial neuron: weighted sum, then a threshold. Stack many of these with smooth activations and you get a neural network.</figcaption>
+      </figure>
+    </div>
+    <p>Read the update case by case. If the prediction is right, \(y - h = 0\) and nothing happens. If a versicolor (\(y=1\)) was called setosa (\(h=0\)), we add \(\alpha x\) to \(\theta\), which raises the score of that flower. If a setosa was called versicolor, we subtract it. Each mistake rotates and shifts the line towards fixing that one point.</p>
+
+    <div class="demo" data-model="perceptron" id="demo-perceptron"></div>
+
+    <div class="key"><span class="eyebrow">Convergence theorem</span>If some line separates the two classes perfectly, the perceptron is guaranteed to find a separating line after a finite number of mistakes. If no such line exists, it never settles. Try versicolor vs virginica in the demo: the line keeps jumping. Minsky and Papert's 1969 book made this limitation famous (a single perceptron cannot learn XOR), and the fix, many neurons in layers, is where deep learning starts.</div>
+    <div class="say"><b>Notice</b>The perceptron stops at the first line that makes no mistakes. That line can pass very close to some flowers. Logistic regression keeps pushing for confidence on every point. Neither one looks for the line with the widest margin; that is the idea behind support vector machines (CS229 notes, chapter 6).</div>
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<section class="part" id="compare">
+  <div class="stamp"><span class="clock">1:15</span><span class="dur">10 min</span></div>
+  <div class="flow">
+    <div class="eyebrow">Part 4</div>
+    <h2>Side by side</h2>
+    <p>All three compute the same linear score \(z = \theta^T x\). What they do with \(z\) is the whole difference.</p>
+    <div class="acts">
+      <figure class="fig" style="margin:0"><canvas class="act" data-fn="linear" height="150" aria-label="Identity function"></canvas><figcaption>Linear: \(h = z\)</figcaption></figure>
+      <figure class="fig" style="margin:0"><canvas class="act" data-fn="sigmoid" height="150" aria-label="Sigmoid function"></canvas><figcaption>Logistic: \(h = 1/(1+e^{-z})\)</figcaption></figure>
+      <figure class="fig" style="margin:0"><canvas class="act" data-fn="step" height="150" aria-label="Step function"></canvas><figcaption>Perceptron: \(h = 1\) if \(z \ge 0\)</figcaption></figure>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th scope="col"></th><th scope="col">Linear regression</th><th scope="col">Logistic regression</th><th scope="col">Perceptron</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Output</th><td>any real number</td><td>probability in (0, 1)</td><td>0 or 1</td></tr>
+          <tr><th scope="row">Cost</th><td>squared error</td><td>cross-entropy</td><td>none: only mistakes trigger updates</td></tr>
+          <tr><th scope="row">Update</th><td colspan="3" style="text-align:center">\(\theta := \theta + \alpha\,(y - h_\theta(x))\,x\)</td></tr>
+          <tr><th scope="row">Training</th><td>batch gradient descent, or the normal equation</td><td>batch gradient descent</td><td>one example at a time</td></tr>
+          <tr><th scope="row">Boundary</th><td>\(\theta^T x = 0.5\)</td><td>\(\theta^T x = 0\)</td><td>\(\theta^T x = 0\)</td></tr>
+          <tr><th scope="row">On our Iris pair</th><td>99% (1 setosa wrong)</td><td>100%</td><td>100% after 13 updates</td></tr>
+          <tr><th scope="row">Good for</th><td>predicting quantities</td><td>classification with confidence</td><td>history, intuition for neural networks</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <figure class="fig" style="margin:0">
+      <canvas id="compare-fig" height="420" aria-label="All three trained decision boundaries drawn over the Iris scatter plot"></canvas>
+      <figcaption>All three models after training, on the same 100 flowers. The lines are close but not equal: each one is optimal under a different cost.</figcaption>
+    </figure>
+    <div class="legend" id="compare-legend"></div>
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<section class="part" id="wrap">
+  <div class="stamp"><span class="clock">1:25</span><span class="dur">5 min</span></div>
+  <div class="flow">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>What to take home</h2>
+    <ul class="tight">
+      <li>A model is a function with parameters. Learning means choosing the parameters that minimize a cost on the training examples.</li>
+      <li>Gradient descent: compute the slope, step downhill, repeat. The learning rate decides whether you crawl, converge or blow up.</li>
+      <li>Logistic regression is linear regression passed through a sigmoid, trained with a cost that suits probabilities.</li>
+      <li>The perceptron is the hard-threshold version. It is one neuron, and it only works if a straight line can do the job.</li>
+    </ul>
+
+    <h3>Running the code</h3>
+    <pre><code>pip install -r requirements.txt
+jupyter notebook ml101_class1.ipynb          # or open it in VS Code
+
+# then run the cells top to bottom (Shift + Enter).
+# each model ends with an animation cell: press ▶ under the plot.
+
+# things to change in the notebook
+CLASSES = ("versicolor", "virginica")        # overlapping species
+FEATURES = ("petal_length", "petal_width")   # other measurements
+LR, ITERS = 1.8, 150                         # watch gradient descent diverge</code></pre>
+    <dl class="files">
+      <dt>ml101_class1.ipynb</dt><dd>the class notebook: each model written out in plain NumPy, then trained and animated</dd>
+      <dt>ml101/common.py</dt><dd>loads <code>data/iris.csv</code>, standardizes, draws the animation player</dd>
+      <dt>figures/</dt><dd>pre-rendered GIFs of each animation, for slides</dd>
+    </dl>
+
+    <h3>Exercises</h3>
+    <ol class="ex">
+      <li>In the linear regression section of the notebook, find the largest learning rate that still converges. Compare it with the value of \(2/\lambda_{\max}\), where \(\lambda_{\max}\) is the largest eigenvalue of \(X^TX/m\).</li>
+      <li>Remove the standardization (use the raw centimetres). How many more iterations does gradient descent need? Why?</li>
+      <li>Run the perceptron on versicolor vs virginica. Plot the number of mistakes per epoch. Does it ever reach zero?</li>
+      <li>Change the features to <code>petal_length petal_width</code>. Which pairs of species become separable?</li>
+      <li>Add an outlier: a versicolor with sepal length 9 cm. Which model's boundary moves most? Explain using the cost functions.</li>
+    </ol>
+    <footer>Notation and derivations follow the CS229 lecture notes by Tengyu Ma and Andrew Ng (chapters 1 and 2). Dataset: R. A. Fisher, “The use of multiple measurements in taxonomic problems”, 1936, with measurements by Edgar Anderson.</footer>
+  </div>
+</section>
+
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  // ---------------------------------------------------------------------
+  // Data: sepal length, sepal width (cm). Fisher's Iris, 50 flowers each.
+  // ---------------------------------------------------------------------
+  const IRIS = {
+    setosa: [[5.1,3.5],[4.9,3.0],[4.7,3.2],[4.6,3.1],[5.0,3.6],[5.4,3.9],[4.6,3.4],[5.0,3.4],[4.4,2.9],[4.9,3.1],[5.4,3.7],[4.8,3.4],[4.8,3.0],[4.3,3.0],[5.8,4.0],[5.7,4.4],[5.4,3.9],[5.1,3.5],[5.7,3.8],[5.1,3.8],[5.4,3.4],[5.1,3.7],[4.6,3.6],[5.1,3.3],[4.8,3.4],[5.0,3.0],[5.0,3.4],[5.2,3.5],[5.2,3.4],[4.7,3.2],[4.8,3.1],[5.4,3.4],[5.2,4.1],[5.5,4.2],[4.9,3.1],[5.0,3.2],[5.5,3.5],[4.9,3.6],[4.4,3.0],[5.1,3.4],[5.0,3.5],[4.5,2.3],[4.4,3.2],[5.0,3.5],[5.1,3.8],[4.8,3.0],[5.1,3.8],[4.6,3.2],[5.3,3.7],[5.0,3.3]],
+    versicolor: [[7.0,3.2],[6.4,3.2],[6.9,3.1],[5.5,2.3],[6.5,2.8],[5.7,2.8],[6.3,3.3],[4.9,2.4],[6.6,2.9],[5.2,2.7],[5.0,2.0],[5.9,3.0],[6.0,2.2],[6.1,2.9],[5.6,2.9],[6.7,3.1],[5.6,3.0],[5.8,2.7],[6.2,2.2],[5.6,2.5],[5.9,3.2],[6.1,2.8],[6.3,2.5],[6.1,2.8],[6.4,2.9],[6.6,3.0],[6.8,2.8],[6.7,3.0],[6.0,2.9],[5.7,2.6],[5.5,2.4],[5.5,2.4],[5.8,2.7],[6.0,2.7],[5.4,3.0],[6.0,3.4],[6.7,3.1],[6.3,2.3],[5.6,3.0],[5.5,2.5],[5.5,2.6],[6.1,3.0],[5.8,2.6],[5.0,2.3],[5.6,2.7],[5.7,3.0],[5.7,2.9],[6.2,2.9],[5.1,2.5],[5.7,2.8]],
+    virginica: [[6.3,3.3],[5.8,2.7],[7.1,3.0],[6.3,2.9],[6.5,3.0],[7.6,3.0],[4.9,2.5],[7.3,2.9],[6.7,2.5],[7.2,3.6],[6.5,3.2],[6.4,2.7],[6.8,3.0],[5.7,2.5],[5.8,2.8],[6.4,3.2],[6.5,3.0],[7.7,3.8],[7.7,2.6],[6.0,2.2],[6.9,3.2],[5.6,2.8],[7.7,2.8],[6.3,2.7],[6.7,3.3],[7.2,3.2],[6.2,2.8],[6.1,3.0],[6.4,2.8],[7.2,3.0],[7.4,2.8],[7.9,3.8],[6.4,2.8],[6.3,2.8],[6.1,2.6],[7.7,3.0],[6.3,3.4],[6.4,3.1],[6.0,3.0],[6.9,3.1],[6.7,3.1],[6.9,3.1],[5.8,2.7],[6.8,3.2],[6.7,3.3],[6.7,3.0],[6.3,2.5],[6.5,3.0],[6.2,3.4],[5.9,3.0]]
+  };
+  const PAIRS = { "setosa,versicolor": ["setosa", "versicolor"], "versicolor,virginica": ["versicolor", "virginica"] };
+  const INITIAL_THETA = [0, 0.2, 1.0]; // same deliberately poor start as the Python code
+
+  function makeData(pair) {
+    const [a, b] = pair;
+    const raw = [...IRIS[a], ...IRIS[b]];
+    const y = [...IRIS[a].map(() => 0), ...IRIS[b].map(() => 1)];
+    const m = raw.length;
+    const mean = [0, 1].map(j => raw.reduce((s, r) => s + r[j], 0) / m);
+    const std = [0, 1].map(j => Math.sqrt(raw.reduce((s, r) => s + (r[j] - mean[j]) ** 2, 0) / m));
+    const Z = raw.map(r => [1, (r[0] - mean[0]) / std[0], (r[1] - mean[1]) / std[1]]);
+    const pad = 0.4;
+    const xr = [Math.min(...raw.map(r => r[0])) - pad, Math.max(...raw.map(r => r[0])) + pad];
+    const yr = [Math.min(...raw.map(r => r[1])) - pad, Math.max(...raw.map(r => r[1])) + pad];
+    return { pair, raw, y, m, mean, std, Z, xr, yr };
+  }
+  const dot = (t, z) => t[0] * z[0] + t[1] * z[1] + t[2] * z[2];
+  const sigmoid = z => 1 / (1 + Math.exp(-z));
+
+  // ---------------------------------------------------------------------
+  // The three models. Same update shape; different h.
+  // ---------------------------------------------------------------------
+  const MODELS = {
+    linear: {
+      title: "Gradient descent on squared error",
+      h: (t, z) => dot(t, z),
+      threshold: 0.5,
+      cost(t, D) { let s = 0; for (let i = 0; i < D.m; i++) s += (dot(t, D.Z[i]) - D.y[i]) ** 2; return s / (2 * D.m); },
+      costLabel: "J(θ), squared error",
+      lrs: [0.01, 0.1, 0.5, 1.5, 1.8], lr: 0.1, cap: 600, batch: true, speed: 20
+    },
+    logistic: {
+      title: "Gradient descent on cross-entropy",
+      h: (t, z) => sigmoid(dot(t, z)),
+      threshold: 0,
+      cost(t, D) {
+        let s = 0;
+        for (let i = 0; i < D.m; i++) {
+          const h = Math.min(Math.max(sigmoid(dot(t, D.Z[i])), 1e-12), 1 - 1e-12);
+          s -= D.y[i] * Math.log(h) + (1 - D.y[i]) * Math.log(1 - h);
+        }
+        return s / D.m;
+      },
+      costLabel: "J(θ), cross-entropy",
+      lrs: [0.05, 0.5, 2, 5], lr: 0.5, cap: 800, batch: true, speed: 40
+    },
+    perceptron: {
+      title: "One update per mistake",
+      h: (t, z) => (dot(t, z) >= 0 ? 1 : 0),
+      threshold: 0,
+      cost(t, D) { let s = 0; for (let i = 0; i < D.m; i++) s += (dot(t, D.Z[i]) >= 0 ? 1 : 0) !== D.y[i]; return s; },
+      costLabel: "misclassified flowers",
+      lrs: [0.1, 1], lr: 0.1, cap: 100, batch: false, speed: 3
+    }
+  };
+
+  function normalEquation(D) {
+    // Solve (X^T X) theta = X^T y for a 3x3 system with Gaussian elimination.
+    const A = [[0,0,0],[0,0,0],[0,0,0]], b = [0,0,0];
+    for (let i = 0; i < D.m; i++) {
+      const z = D.Z[i];
+      for (let r = 0; r < 3; r++) { b[r] += z[r] * D.y[i]; for (let c = 0; c < 3; c++) A[r][c] += z[r] * z[c]; }
+    }
+    for (let p = 0; p < 3; p++) {
+      for (let r = p + 1; r < 3; r++) {
+        const f = A[r][p] / A[p][p];
+        for (let c = p; c < 3; c++) A[r][c] -= f * A[p][c];
+        b[r] -= f * b[p];
+      }
+    }
+    const t = [0,0,0];
+    for (let r = 2; r >= 0; r--) { let s = b[r]; for (let c = r + 1; c < 3; c++) s -= A[r][c] * t[c]; t[r] = s / A[r][r]; }
+    return t;
+  }
+
+  function mulberry32(seed) {
+    return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  }
+
+  // ---------------------------------------------------------------------
+  // Theme helpers
+  // ---------------------------------------------------------------------
+  function tokens() {
+    const cs = getComputedStyle(document.documentElement);
+    const g = n => cs.getPropertyValue(n).trim();
+    return { paper: g("--paper"), surface: g("--surface"), ink: g("--ink"), muted: g("--muted"), rule: g("--rule"),
+             soft: g("--soft"), wrong: g("--wrong"), setosa: g("--setosa"), versicolor: g("--versicolor"), virginica: g("--virginica"),
+             mono: g("--mono") };
+  }
+  function hexRgb(hex) {
+    const h = hex.replace("#", "");
+    return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16));
+  }
+  function setupCanvas(canvas, cssHeight) {
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth || 300;
+    const h = cssHeight;
+    canvas.style.height = h + "px";
+    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+    }
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx, w, h };
+  }
+
+  // Line theta^T z = c drawn in centimetres (see boundary_segment in common.py).
+  function boundary(theta, c, D) {
+    const [t0, t1, t2] = theta, [m1, m2] = D.mean, [s1, s2] = D.std;
+    const a = t1 / s1, b = t2 / s2, k = c - t0 + t1 * m1 / s1 + t2 * m2 / s2;
+    if (Math.abs(a) < 1e-12 && Math.abs(b) < 1e-12) return null;
+    if (Math.abs(b) >= Math.abs(a)) return [[D.xr[0], (k - a * D.xr[0]) / b], [D.xr[1], (k - a * D.xr[1]) / b]];
+    return [[(k - b * D.yr[0]) / a, D.yr[0]], [(k - b * D.yr[1]) / a, D.yr[1]]];
+  }
+
+  // ---------------------------------------------------------------------
+  // Scatter plot renderer, shared by the demos and the comparison figure.
+  // ---------------------------------------------------------------------
+  function drawScatter(canvas, D, opts) {
+    const T = tokens();
+    const width = canvas.clientWidth || 600;
+    const { ctx, w, h } = setupCanvas(canvas, Math.max(260, Math.min(460, width * 0.68)));
+    const L = 48, R = 12, Tp = 12, B = 40;
+    const pw = w - L - R, ph = h - Tp - B;
+    const sx = x => L + (x - D.xr[0]) / (D.xr[1] - D.xr[0]) * pw;
+    const sy = y => Tp + ph - (y - D.yr[0]) / (D.yr[1] - D.yr[0]) * ph;
+    const colors = D.pair.map(s => T[s]);
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = T.surface;
+    ctx.fillRect(L, Tp, pw, ph);
+
+    // Background shading of h(x)
+    if (opts.shade) {
+      const gw = 120, gh = Math.round(120 * ph / pw);
+      const off = opts._off || (opts._off = document.createElement("canvas"));
+      off.width = gw; off.height = gh;
+      const octx = off.getContext("2d");
+      const img = octx.createImageData(gw, gh);
+      const bg = hexRgb(T.surface), c0 = hexRgb(colors[0]), c1 = hexRgb(colors[1]);
+      for (let py = 0; py < gh; py++) {
+        const yv = D.yr[1] - (py + 0.5) / gh * (D.yr[1] - D.yr[0]);
+        for (let px = 0; px < gw; px++) {
+          const xv = D.xr[0] + (px + 0.5) / gw * (D.xr[1] - D.xr[0]);
+          const z = [1, (xv - D.mean[0]) / D.std[0], (yv - D.mean[1]) / D.std[1]];
+          let p = Math.min(1, Math.max(0, opts.shade(z)));
+          const strength = Math.abs(p - 0.5) * 2 * 0.34;
+          const c = p >= 0.5 ? c1 : c0;
+          const k = (py * gw + px) * 4;
+          img.data[k] = bg[0] + (c[0] - bg[0]) * strength;
+          img.data[k + 1] = bg[1] + (c[1] - bg[1]) * strength;
+          img.data[k + 2] = bg[2] + (c[2] - bg[2]) * strength;
+          img.data[k + 3] = 255;
+        }
+      }
+      octx.putImageData(img, 0, 0);
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(off, L, Tp, pw, ph);
+    }
+
+    // Grid and axes
+    ctx.strokeStyle = T.rule; ctx.lineWidth = 1;
+    ctx.fillStyle = T.muted; ctx.font = `11px ${T.mono}`;
+    ctx.textAlign = "center"; ctx.textBaseline = "top";
+    for (let x = Math.ceil(D.xr[0] * 2) / 2; x <= D.xr[1]; x += 0.5) {
+      ctx.globalAlpha = 0.6; ctx.beginPath(); ctx.moveTo(sx(x), Tp); ctx.lineTo(sx(x), Tp + ph); ctx.stroke(); ctx.globalAlpha = 1;
+      ctx.fillText(x.toFixed(1), sx(x), Tp + ph + 6);
+    }
+    ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    for (let y = Math.ceil(D.yr[0] * 2) / 2; y <= D.yr[1]; y += 0.5) {
+      ctx.globalAlpha = 0.6; ctx.beginPath(); ctx.moveTo(L, sy(y)); ctx.lineTo(L + pw, sy(y)); ctx.stroke(); ctx.globalAlpha = 1;
+      ctx.fillText(y.toFixed(1), L - 6, sy(y));
+    }
+    ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+    ctx.fillText("sepal length (cm)", L + pw / 2, h - 2);
+    ctx.save(); ctx.translate(12, Tp + ph / 2); ctx.rotate(-Math.PI / 2); ctx.textBaseline = "middle";
+    ctx.fillText("sepal width (cm)", 0, 0); ctx.restore();
+
+    ctx.save();
+    ctx.beginPath(); ctx.rect(L, Tp, pw, ph); ctx.clip();
+
+    // Lines
+    for (const ln of opts.lines || []) {
+      const seg = boundary(ln.theta, ln.c, D);
+      if (!seg) continue;
+      ctx.strokeStyle = ln.color || T.ink; ctx.lineWidth = ln.width || 2.5;
+      ctx.setLineDash(ln.dash || []);
+      ctx.beginPath(); ctx.moveTo(sx(seg[0][0]), sy(seg[0][1])); ctx.lineTo(sx(seg[1][0]), sy(seg[1][1])); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // Points: circles for y=0, triangles for y=1
+    for (let i = 0; i < D.m; i++) {
+      const [x, y] = D.raw[i], px = sx(x), py = sy(y);
+      ctx.fillStyle = colors[D.y[i]]; ctx.strokeStyle = T.surface; ctx.lineWidth = 1;
+      ctx.beginPath();
+      if (D.y[i] === 0) ctx.arc(px, py, 4.6, 0, Math.PI * 2);
+      else { ctx.moveTo(px, py - 5.6); ctx.lineTo(px + 5.2, py + 3.6); ctx.lineTo(px - 5.2, py + 3.6); ctx.closePath(); }
+      ctx.fill(); ctx.stroke();
+    }
+    if (opts.wrong) {
+      ctx.strokeStyle = T.wrong; ctx.lineWidth = 1.6;
+      for (const i of opts.wrong) { ctx.beginPath(); ctx.arc(sx(D.raw[i][0]), sy(D.raw[i][1]), 8.5, 0, Math.PI * 2); ctx.stroke(); }
+    }
+    if (opts.highlight != null) {
+      const i = opts.highlight;
+      ctx.strokeStyle = T.ink; ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.arc(sx(D.raw[i][0]), sy(D.raw[i][1]), 13, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.restore();
+    ctx.strokeStyle = T.muted; ctx.lineWidth = 1; ctx.strokeRect(L + 0.5, Tp + 0.5, pw - 1, ph - 1);
+  }
+
+  function drawCost(canvas, hist, label, capX) {
+    const T = tokens();
+    const { ctx, w, h } = setupCanvas(canvas, 170);
+    const L = 44, R = 10, Tp = 18, B = 28;
+    const pw = w - L - R, ph = h - Tp - B;
+    ctx.clearRect(0, 0, w, h);
+    const finite = hist.filter(p => Number.isFinite(p[1]));
+    const maxY = Math.max(1e-9, ...finite.map(p => p[1]).slice(0, 400)) * 1.08;
+    const maxX = Math.max(capX, hist.length ? hist[hist.length - 1][0] : 1);
+    const sx = x => L + x / maxX * pw, sy = y => Tp + ph - Math.min(y, maxY) / maxY * ph;
+
+    ctx.strokeStyle = T.rule; ctx.fillStyle = T.muted; ctx.font = `10.5px ${T.mono}`; ctx.lineWidth = 1;
+    ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    for (let k = 0; k <= 2; k++) {
+      const v = maxY * k / 2;
+      ctx.beginPath(); ctx.moveTo(L, sy(v)); ctx.lineTo(L + pw, sy(v)); ctx.stroke();
+      ctx.fillText(v >= 10 ? v.toFixed(0) : v.toFixed(2), L - 5, sy(v));
+    }
+    ctx.textAlign = "center"; ctx.textBaseline = "top";
+    ctx.fillText("0", sx(0), Tp + ph + 5);
+    ctx.fillText(String(Math.round(maxX)), sx(maxX) - 8, Tp + ph + 5);
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
+    ctx.fillText(label, L, 0);
+
+    if (!finite.length) return;
+    ctx.strokeStyle = T.ink; ctx.lineWidth = 1.8; ctx.beginPath();
+    finite.forEach((p, k) => (k ? ctx.lineTo(sx(p[0]), sy(p[1])) : ctx.moveTo(sx(p[0]), sy(p[1]))));
+    ctx.stroke();
+    const last = finite[finite.length - 1];
+    ctx.fillStyle = T.wrong; ctx.beginPath(); ctx.arc(sx(last[0]), sy(last[1]), 3.6, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // ---------------------------------------------------------------------
+  // Interactive demo widget
+  // ---------------------------------------------------------------------
+  class Demo {
+    constructor(root) {
+      this.root = root;
+      this.key = root.dataset.model;
+      this.M = MODELS[this.key];
+      this.lr = this.M.lr;
+      this.speed = this.M.speed;
+      this.pairKey = "setosa,versicolor";
+      this.build();
+      this.reset();
+    }
+
+    build() {
+      const id = this.root.id;
+      const lrOpts = this.M.lrs.map(v => `<option value="${v}"${v === this.M.lr ? " selected" : ""}>${v}</option>`).join("");
+      const speeds = this.M.batch ? [[5, "slow"], [this.M.speed, "normal"], [150, "fast"]] : [[1, "slow"], [this.M.speed, "normal"], [12, "fast"]];
+      const spOpts = speeds.map(([v, n]) => `<option value="${v}"${v === this.M.speed ? " selected" : ""}>${n}</option>`).join("");
+      this.root.innerHTML = `
+        <div class="demo-head">
+          <h3>Live demo · ${this.M.title}</h3>
+          <div class="controls">
+            <button class="primary" data-act="play">Play</button>
+            <button data-act="step">Step</button>
+            <button data-act="reset">Reset</button>
+            <label for="${id}-lr">α <select id="${id}-lr" data-act="lr">${lrOpts}</select></label>
+            <label for="${id}-sp">speed <select id="${id}-sp" data-act="speed">${spOpts}</select></label>
+            <label for="${id}-pair">species <select id="${id}-pair" data-act="pair">
+              <option value="setosa,versicolor">setosa / versicolor</option>
+              <option value="versicolor,virginica">versicolor / virginica</option>
+            </select></label>
+          </div>
+        </div>
+        <div class="demo-body">
+          <div class="plot"><canvas aria-label="Scatter plot with the current decision boundary"></canvas></div>
+          <div class="side">
+            <canvas class="cost" aria-label="Cost over training"></canvas>
+            <dl class="readout"></dl>
+            <div class="status" role="status"></div>
+          </div>
+        </div>
+        <div class="legend"></div>`;
+      this.plot = this.root.querySelector(".plot canvas");
+      this.costCanvas = this.root.querySelector("canvas.cost");
+      this.readout = this.root.querySelector(".readout");
+      this.statusEl = this.root.querySelector(".status");
+      this.legend = this.root.querySelector(".legend");
+      this.playBtn = this.root.querySelector('[data-act="play"]');
+      this.playBtn.addEventListener("click", () => (this.running ? this.pause() : this.play()));
+      this.root.querySelector('[data-act="step"]').addEventListener("click", () => { this.pause(); this.step(); this.render(); });
+      this.root.querySelector('[data-act="reset"]').addEventListener("click", () => this.reset());
+      this.root.querySelector('[data-act="lr"]').addEventListener("change", e => { this.lr = +e.target.value; this.reset(); });
+      this.root.querySelector('[data-act="speed"]').addEventListener("change", e => { this.speed = +e.target.value; });
+      this.root.querySelector('[data-act="pair"]').addEventListener("change", e => { this.pairKey = e.target.value; this.reset(); });
+    }
+
+    reset() {
+      this.pause();
+      this.D = makeData(PAIRS[this.pairKey]);
+      this.theta = INITIAL_THETA.slice();
+      this.iter = 0;
+      this.hist = [[0, this.M.cost(this.theta, this.D)]];
+      this.done = null;
+      this.highlight = null;
+      this.target = this.key === "linear" ? normalEquation(this.D) : null;
+      // perceptron state
+      this.rng = mulberry32(7);
+      this.order = this.shuffle();
+      this.pos = 0; this.epoch = 1; this.epochMistakes = 0;
+      this.render();
+    }
+
+    shuffle() {
+      const a = [...Array(this.D.m).keys()];
+      for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(this.rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+      return a;
+    }
+
+    step() {
+      if (this.done) return;
+      const D = this.D, M = this.M;
+      if (M.batch) {
+        const g = [0, 0, 0];
+        for (let i = 0; i < D.m; i++) {
+          const err = M.h(this.theta, D.Z[i]) - D.y[i];
+          for (let j = 0; j < 3; j++) g[j] += err * D.Z[i][j];
+        }
+        for (let j = 0; j < 3; j++) this.theta[j] -= this.lr * g[j] / D.m;
+        this.iter++;
+        const J = M.cost(this.theta, D), prev = this.hist[this.hist.length - 1][1];
+        this.hist.push([this.iter, J]);
+        if (!Number.isFinite(J) || J > 1e6) this.done = { bad: true, msg: "Diverged: the learning rate is too large, every step overshoots." };
+        else if (Math.abs(prev - J) < 1e-7) this.done = { msg: `Converged after ${this.iter} iterations.` };
+        else if (this.iter >= M.cap) this.done = { msg: `Stopped at ${M.cap} iterations.` };
+        return;
+      }
+      // Perceptron: walk through examples until one is misclassified, then update.
+      while (true) {
+        if (this.pos === D.m) {
+          if (this.epochMistakes === 0) { this.highlight = null; this.done = { msg: `Converged: a full pass with no mistakes (epoch ${this.epoch}, ${this.iter} updates).` }; return; }
+          if (this.epoch >= M.cap) { this.done = { bad: true, msg: `Stopped after ${M.cap} epochs. No line separates these two species.` }; return; }
+          this.epoch++; this.pos = 0; this.epochMistakes = 0; this.order = this.shuffle();
+        }
+        const i = this.order[this.pos++];
+        const hx = M.h(this.theta, D.Z[i]);
+        if (hx !== D.y[i]) {
+          for (let j = 0; j < 3; j++) this.theta[j] += this.lr * (D.y[i] - hx) * D.Z[i][j];
+          this.iter++; this.epochMistakes++; this.highlight = i;
+          this.hist.push([this.iter, M.cost(this.theta, D)]);
+          return;
+        }
+      }
+    }
+
+    play() {
+      if (this.done) this.reset();
+      this.running = true; this.playBtn.textContent = "Pause";
+      let last = performance.now(), acc = 0;
+      const tick = now => {
+        if (!this.running) return;
+        acc += (now - last) / 1000 * this.speed; last = now;
+        let n = Math.floor(acc); acc -= n;
+        while (n-- > 0 && !this.done) this.step();
+        this.render();
+        if (this.done) { this.pause(); return; }
+        this.raf = requestAnimationFrame(tick);
+      };
+      this.raf = requestAnimationFrame(tick);
+    }
+
+    pause() {
+      this.running = false;
+      if (this.playBtn) this.playBtn.textContent = "Play";
+      cancelAnimationFrame(this.raf);
+    }
+
+    render() {
+      const D = this.D, M = this.M, T = tokens();
+      const wrong = [];
+      for (let i = 0; i < D.m; i++) if ((M.h(this.theta, D.Z[i]) >= 0.5 ? 1 : 0) !== D.y[i]) wrong.push(i);
+      const lines = [];
+      if (this.target) lines.push({ theta: this.target, c: M.threshold, color: T.muted, width: 1.5, dash: [6, 5] });
+      lines.push({ theta: this.theta, c: M.threshold });
+      drawScatter(this.plot, D, { shade: z => M.h(this.theta, z), lines, wrong, highlight: this.highlight, _off: this._off });
+      drawCost(this.costCanvas, this.hist, M.costLabel, M.batch ? Math.min(M.cap, 150) : 20);
+      const J = this.hist[this.hist.length - 1][1];
+      const acc = Math.round((1 - wrong.length / D.m) * 100);
+      const fmt = v => (Number.isFinite(v) ? (v >= 0 ? "+" : "") + v.toFixed(2) : "∞");
+      this.readout.innerHTML = `
+        <dt>${M.batch ? "iteration" : "updates"}</dt><dd>${this.iter}${M.batch ? "" : ` (epoch ${this.epoch})`}</dd>
+        <dt>θ</dt><dd>[${this.theta.map(fmt).join(", ")}]</dd>
+        <dt>cost</dt><dd>${Number.isFinite(J) ? (M.batch ? J.toFixed(4) : J) : "∞"}</dd>
+        <dt>accuracy</dt><dd>${acc}% (${wrong.length} wrong)</dd>`;
+      this.statusEl.textContent = this.done ? this.done.msg : (this.running ? "Training…" : (this.iter ? "Paused." : "Press Play, or Step one " + (M.batch ? "iteration" : "update") + " at a time."));
+      this.statusEl.dataset.state = this.done ? (this.done.bad ? "bad" : "done") : "";
+      const [a, b] = D.pair;
+      this.legend.innerHTML =
+        `<span><i class="sw c" style="background:var(--${a})"></i>${a} (y=0)</span>` +
+        `<span style="color:var(--${b})"><i class="sw t"></i><span style="color:var(--muted)">${b} (y=1)</span></span>` +
+        `<span><i class="sw l"></i>boundary θᵀx = ${M.threshold}</span>` +
+        (this.target ? `<span><i class="sw d"></i>normal-equation answer</span>` : "") +
+        `<span><i class="sw r"></i>misclassified</span>` +
+        (M.batch ? "" : `<span><i class="sw r" style="border-color:var(--ink)"></i>example that caused the update</span>`);
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Static figures
+  // ---------------------------------------------------------------------
+  function drawFn(canvas, fn, height) {
+    const T = tokens();
+    const { ctx, w, h } = setupCanvas(canvas, height);
+    const L = 30, R = 10, Tp = 10, B = 24, pw = w - L - R, ph = h - Tp - B;
+    const xr = [-6, 6], yr = fn === "linear" ? [-0.6, 1.6] : [-0.1, 1.1];
+    const f = { linear: z => 0.5 + z / 8, sigmoid, step: z => (z >= 0 ? 1 : 0) }[fn];
+    const sx = x => L + (x - xr[0]) / (xr[1] - xr[0]) * pw, sy = y => Tp + ph - (y - yr[0]) / (yr[1] - yr[0]) * ph;
+    ctx.clearRect(0, 0, w, h);
+    ctx.strokeStyle = T.rule; ctx.lineWidth = 1; ctx.fillStyle = T.muted; ctx.font = `10.5px ${T.mono}`;
+    ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    for (const v of [0, 0.5, 1]) { ctx.beginPath(); ctx.moveTo(L, sy(v)); ctx.lineTo(L + pw, sy(v)); ctx.stroke(); ctx.fillText(v, L - 4, sy(v)); }
+    ctx.textAlign = "center"; ctx.textBaseline = "top";
+    for (const v of [-6, -3, 0, 3, 6]) ctx.fillText(v, sx(v), Tp + ph + 5);
+    ctx.beginPath(); ctx.moveTo(sx(0), Tp); ctx.lineTo(sx(0), Tp + ph); ctx.stroke();
+    ctx.save(); ctx.beginPath(); ctx.rect(L, Tp, pw, ph); ctx.clip();
+    ctx.strokeStyle = T.ink; ctx.lineWidth = 2.2; ctx.beginPath();
+    if (fn === "step") { ctx.moveTo(sx(-6), sy(0)); ctx.lineTo(sx(0), sy(0)); ctx.lineTo(sx(0), sy(1)); ctx.lineTo(sx(6), sy(1)); }
+    else for (let k = 0; k <= 200; k++) { const z = xr[0] + k / 200 * (xr[1] - xr[0]); k ? ctx.lineTo(sx(z), sy(f(z))) : ctx.moveTo(sx(z), sy(f(z))); }
+    ctx.stroke(); ctx.restore();
+  }
+
+  function trainAll(D) {
+    const run = key => {
+      const M = MODELS[key], t = INITIAL_THETA.slice();
+      if (M.batch) {
+        const iters = key === "linear" ? 500 : 2000, lr = M.lr;
+        for (let s = 0; s < iters; s++) {
+          const g = [0, 0, 0];
+          for (let i = 0; i < D.m; i++) { const e = M.h(t, D.Z[i]) - D.y[i]; for (let j = 0; j < 3; j++) g[j] += e * D.Z[i][j]; }
+          for (let j = 0; j < 3; j++) t[j] -= lr * g[j] / D.m;
+        }
+        return t;
+      }
+      const rng = mulberry32(7);
+      for (let epoch = 0; epoch < 100; epoch++) {
+        const order = [...Array(D.m).keys()];
+        for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+        let mistakes = 0;
+        for (const i of order) { const hx = M.h(t, D.Z[i]); if (hx !== D.y[i]) { mistakes++; for (let j = 0; j < 3; j++) t[j] += M.lr * (D.y[i] - hx) * D.Z[i][j]; } }
+        if (!mistakes) break;
+      }
+      return t;
+    };
+    return { linear: run("linear"), logistic: run("logistic"), perceptron: run("perceptron") };
+  }
+
+  const compareData = makeData(PAIRS["setosa,versicolor"]);
+  const trained = trainAll(compareData);
+  function drawCompare() {
+    const T = tokens();
+    drawScatter(document.getElementById("compare-fig"), compareData, {
+      lines: [
+        { theta: trained.linear, c: 0.5, color: T.ink, width: 2.4 },
+        { theta: trained.logistic, c: 0, color: T.wrong, width: 2.2, dash: [9, 5] },
+        { theta: trained.perceptron, c: 0, color: T.virginica, width: 2.4, dash: [2, 4] }
+      ]
+    });
+  }
+  document.getElementById("compare-legend").innerHTML =
+    `<span><i class="sw c" style="background:var(--setosa)"></i>setosa</span>` +
+    `<span style="color:var(--versicolor)"><i class="sw t"></i><span style="color:var(--muted)">versicolor</span></span>` +
+    `<span><i class="sw l"></i>linear regression</span>` +
+    `<span><i class="sw l" style="border-top:2.2px dashed var(--wrong)"></i>logistic regression</span>` +
+    `<span><i class="sw l" style="border-top:2.4px dotted var(--virginica)"></i>perceptron</span>`;
+
+  const demos = [...document.querySelectorAll(".demo")].map(el => new Demo(el));
+  function redrawAll() {
+    demos.forEach(d => d.render());
+    drawFn(document.getElementById("sigmoid-fig"), "sigmoid", 200);
+    document.querySelectorAll("canvas.act").forEach(c => drawFn(c, c.dataset.fn, 150));
+    drawCompare();
+  }
+  redrawAll();
+  let resizeTimer;
+  new ResizeObserver(() => { clearTimeout(resizeTimer); resizeTimer = setTimeout(redrawAll, 60); }).observe(document.body);
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", redrawAll);
+  new MutationObserver(redrawAll).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  if (document.fonts) document.fonts.ready.then(redrawAll);
+})();
+</script>
